@@ -292,8 +292,7 @@ class firewall_api:
         status = request.form.get('status', '1')
         if status == '1':
             if self.__isUfw:
-                mw.execShell('/usr/sbin/ufw stop')
-                return
+                mw.execShell('/usr/sbin/ufw disable')
             if self.__isFirewalld:
                 mw.execShell('systemctl stop firewalld.service')
                 mw.execShell('systemctl disable firewalld.service')
@@ -304,8 +303,7 @@ class firewall_api:
                 mw.execShell('/etc/init.d/iptables stop')
         else:
             if self.__isUfw:
-                mw.execShell('/usr/sbin/ufw start')
-                return
+                mw.execShell("echo 'y'|sudo ufw enable")
             if self.__isFirewalld:
                 mw.execShell('systemctl start firewalld.service')
                 mw.execShell('systemctl enable firewalld.service')
@@ -367,16 +365,15 @@ class firewall_api:
     def addAcceptPort(self, port):
         if self.__isUfw:
             mw.execShell('ufw allow ' + port + '/tcp')
+        elif self.__isFirewalld:
+            port = port.replace(':', '-')
+            cmd = 'firewall-cmd --permanent --zone=public --add-port=' + port + '/tcp'
+            mw.execShell(cmd)
+        elif self.__isMac:
+            pass
         else:
-            if self.__isFirewalld:
-                port = port.replace(':', '-')
-                cmd = 'firewall-cmd --permanent --zone=public --add-port=' + port + '/tcp'
-                mw.execShell(cmd)
-            elif self.__isMac:
-                pass
-            else:
-                cmd = 'iptables -I INPUT -p tcp -m state --state NEW -m tcp --dport ' + port + ' -j ACCEPT'
-                mw.execShell(cmd)
+            cmd = 'iptables -I INPUT -p tcp -m state --state NEW -m tcp --dport ' + port + ' -j ACCEPT'
+            mw.execShell(cmd)
 
     def firewallReload(self):
         if self.__isUfw:
@@ -392,9 +389,9 @@ class firewall_api:
 
     def getFwStatus(self):
         if self.__isUfw:
-            cmd = "ps -ef|grep ufw |grep -v grep | awk '{print $2}'"
+            cmd = "/usr/sbin/ufw status| grep Status | awk -F ':' '{print $2}'"
             data = mw.execShell(cmd)
-            if data[0] == '':
+            if data[0].strip() == 'inactive':
                 return False
             return True
         if self.__isFirewalld:

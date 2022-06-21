@@ -62,6 +62,13 @@ class files_api:
         path = request.form.get('path', '')
         return self.zip(sfile, dfile, stype, path)
 
+    def unzipApi(self):
+        sfile = request.form.get('sfile', '')
+        dfile = request.form.get('dfile', '')
+        stype = request.form.get('type', '')
+        path = request.form.get('path', '')
+        return self.unzip(sfile, dfile, stype, path)
+
     # 移动文件或目录
     def mvFileApi(self):
         sfile = request.form.get('sfile', '')
@@ -355,7 +362,7 @@ done
 
         # 检查是否为.user.ini
         if path.find('.user.ini'):
-            os.system("chattr -i '" + path + "'")
+            os.system("which chattr && chattr -i '" + path + "'")
         try:
             if os.path.exists('data/recycle_bin.pl'):
                 if self.mvRecycleBin(path):
@@ -518,14 +525,17 @@ done
         sfile = request.form.get('sfile', '')
         dfile = request.form.get('dfile', '')
 
+        if sfile == dfile:
+            return mw.returnJson(False, '源与目的一致!')
+
         if not os.path.exists(sfile):
             return mw.returnJson(False, '指定文件不存在!')
 
         if os.path.isdir(sfile):
             return self.copyDir(sfile, dfile)
 
-        import shutil
         try:
+            import shutil
             shutil.copyfile(sfile, dfile)
             msg = mw.getInfo('复制文件[{1}]到[{2}]成功!', (sfile, dfile,))
             mw.writeLog('文件管理', msg)
@@ -557,7 +567,7 @@ done
 
     # 检查敏感目录
     def checkDir(self, path):
-        path = str(path, encoding='utf-8')
+        # path = str(path, encoding='utf-8')
         path = path.replace('//', '/')
         if path[-1:] == '/':
             path = path[:-1]
@@ -738,6 +748,30 @@ done
         except:
             return mw.returnJson(False, '文件压缩失败!')
 
+    def unzip(self, sfile, dfile, stype, path):
+
+        if not os.path.exists(sfile):
+            return mw.returnMsg(False, '指定文件不存在!')
+
+        try:
+            tmps = mw.getRunDir() + '/tmp/panelExec.log'
+            if stype == 'zip':
+                os.system("cd " + path + " && unzip -d '" + dfile +
+                          "' '" + sfile + "' > " + tmps + " 2>&1")
+            else:
+                sfiles = ''
+                for sfile in sfile.split(','):
+                    if not sfile:
+                        continue
+                    sfiles += " '" + sfile + "'"
+                os.system("cd " + path + " && tar -zxvf " + sfiles +
+                          " -C " + dfile + " > " + tmps + " 2>&1")
+            self.setFileAccept(dfile)
+            mw.writeLog("文件管理", '文件解压成功!', (sfile, dfile))
+            return mw.returnJson(True, '文件解压成功!')
+        except:
+            return mw.returnJson(False, '文件解压失败!')
+
     def delete(self, path):
 
         if not os.path.exists(path):
@@ -745,7 +779,7 @@ done
 
         # 检查是否为.user.ini
         if path.find('.user.ini') >= 0:
-            os.system("chattr -i '" + path + "'")
+            os.system("which chattr && chattr -i '" + path + "'")
 
         try:
             if os.path.exists('data/recycle_bin.pl'):

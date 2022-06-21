@@ -7,38 +7,52 @@ is64bit=`getconf LONG_BIT`
 startTime=`date +%s`
 
 _os=`uname`
-if [ "$_os" == "Darwin" ] ; then
-	OSNAME='MAC'
+echo "use system: ${_os}"
+
+if grep -Eqi "Ubuntu" /etc/issue || grep -Eq "Ubuntu" /etc/*-release; then
+	sudo ln -sf /bin/bash /bin/sh
+	#sudo dpkg-reconfigure dash
+fi
+
+if grep -Eqi "Debian" /etc/issue || grep -Eq "Debian" /etc/*-release; then
+	sudo ln -sf /bin/bash /bin/sh
+fi
+
+if [ ${_os} == "Darwin" ]; then
+	OSNAME='macos'
 elif grep -Eqi "CentOS" /etc/issue || grep -Eq "CentOS" /etc/*-release; then
-	OSNAME='CentOS'
-elif grep -Eqi "Red Hat Enterprise Linux Server" /etc/issue || grep -Eq "Red Hat Enterprise Linux Server" /etc/*-release; then
-	OSNAME='RHEL'
-elif grep -Eqi "Aliyun" /etc/issue || grep -Eq "Aliyun" /etc/*-release; then
-	OSNAME='Aliyun'
+	OSNAME='centos'
+	yum install -y wget zip unzip
 elif grep -Eqi "Fedora" /etc/issue || grep -Eq "Fedora" /etc/*-release; then
-	OSNAME='Fedora'
-elif grep -Eqi "Amazon Linux AMI" /etc/issue || grep -Eq "Amazon Linux AMI" /etc/*-release; then
-	OSNAME='Amazon'
+	OSNAME='fedora'
+	yum install -y wget zip unzip
+elif grep -Eqi "Rocky" /etc/issue || grep -Eq "Rocky" /etc/*-release; then
+	OSNAME='rocky'
+	yum install -y wget zip unzip
+elif grep -Eqi "AlmaLinux" /etc/issue || grep -Eq "AlmaLinux" /etc/*-release; then
+	OSNAME='alma'
+	yum install -y wget zip unzip
 elif grep -Eqi "Debian" /etc/issue || grep -Eq "Debian" /etc/*-release; then
-	OSNAME='Debian'
+	OSNAME='debian'
+	apt install -y wget zip unzip
 elif grep -Eqi "Ubuntu" /etc/issue || grep -Eq "Ubuntu" /etc/*-release; then
-	OSNAME='Ubuntu'
+	OSNAME='ubuntu'
+	apt install -y wget zip unzip
 elif grep -Eqi "Raspbian" /etc/issue || grep -Eq "Raspbian" /etc/*-release; then
-	OSNAME='Raspbian'
-elif grep -Eqi "Deepin" /etc/issue || grep -Eq "Deepin" /etc/*-release; then
-	OSNAME='Deepin'
+	OSNAME='raspbian'
 else
 	OSNAME='unknow'
 fi
 
-#pip uninstall public
+wget -O /tmp/master.zip https://codeload.github.com/midoks/mdserver-web/zip/master
+cd /tmp && unzip /tmp/master.zip
+/usr/bin/cp -rf  /tmp/mdserver-web-master/* /www/server/mdserver-web
+rm -rf /tmp/master.zip
+rm -rf /tmp/mdserver-web-master
 
-if [ "$OSNAME" == 'MAC' ];then
-	echo 'The development environment only needs to be downloaded again!'
-	exit 0
-else
-	curl -fsSL  https://raw.githubusercontent.com/midoks/mdserver-web/master/scripts/update_centos.sh | sh
-fi
+#pip uninstall public
+echo "use system version: ${OSNAME}"
+curl -fsSL  https://raw.githubusercontent.com/midoks/mdserver-web/master/scripts/update/${OSNAME}.sh | bash
 
 endTime=`date +%s`
 ((outTime=($endTime-$startTime)/60))

@@ -31,11 +31,6 @@ def getInitDFile():
     return '/etc/init.d/' + getPluginName()
 
 
-def getConf():
-    path = getPluginDir() + "/config/redis.conf"
-    return path
-
-
 def getInitDTpl():
     path = getPluginDir() + "/init.d/" + getPluginName() + ".tpl"
     return path
@@ -81,78 +76,86 @@ def initDreplace():
     file_bin = initD_path + '/' + getPluginName()
 
     # initd replace
-    content = mw.readFile(file_tpl)
-    content = content.replace('{$SERVER_PATH}', '/swapfile')
-    mw.writeFile(file_bin, content)
-    mw.execShell('chmod +x ' + file_bin)
+    if not os.path.exists(file_bin):
+        content = mw.readFile(file_tpl)
+        content = content.replace(
+            '{$SERVER_PATH}', getServerDir() + '/swapfile')
+        mw.writeFile(file_bin, content)
+        mw.execShell('chmod +x ' + file_bin)
+
+    # systemd
+    systemDir = '/lib/systemd/system'
+    systemService = systemDir + '/swap.service'
+    systemServiceTpl = getPluginDir() + '/init.d/swap.service.tpl'
+    if os.path.exists(systemDir) and not os.path.exists(systemService):
+        swapon_bin = mw.execShell('which swapon')[0].strip()
+        swapoff_bin = mw.execShell('which swapoff')[0].strip()
+        service_path = mw.getServerDir()
+        se_content = mw.readFile(systemServiceTpl)
+        se_content = se_content.replace('{$SERVER_PATH}', service_path)
+        se_content = se_content.replace('{$SWAPON_BIN}', swapon_bin)
+        se_content = se_content.replace('{$SWAPOFF_BIN}', swapoff_bin)
+        mw.writeFile(systemService, se_content)
+        mw.execShell('systemctl daemon-reload')
 
     return file_bin
 
 
-def start():
+def swapOp(method):
     file = initDreplace()
+
+    if not mw.isAppleSystem():
+        data = mw.execShell('systemctl ' + method + ' swap')
+        if data[1] == '':
+            return 'ok'
+        return 'fail'
+
     data = mw.execShell(file + ' start')
     if data[1] == '':
         return 'ok'
     return 'fail'
 
 
+def start():
+    return swapOp('start')
+
+
 def stop():
-    file = initDreplace()
-    data = mw.execShell(file + ' stop')
-    if data[1] == '':
-        return 'ok'
-    return 'fail'
+    return swapOp('stop')
 
 
 def restart():
-    file = initDreplace()
-    data = mw.execShell(file + ' restart')
-    if data[1] == '':
-        return 'ok'
-    return 'fail'
+    return swapOp('restart')
 
 
 def reload():
-    file = initDreplace()
-    data = mw.execShell(file + ' reload')
-    if data[1] == '':
-        return 'ok'
-    return 'fail'
+    return swapOp('reload')
 
 
 def initdStatus():
-    if not app_debug:
-        if mw.isAppleSystem():
-            return "Apple Computer does not support"
-    initd_bin = getInitDFile()
-    if os.path.exists(initd_bin):
-        return 'ok'
-    return 'fail'
+    if mw.isAppleSystem():
+        return "Apple Computer does not support"
+
+    shell_cmd = 'systemctl status swap | grep loaded | grep "enabled;"'
+    data = mw.execShell(shell_cmd)
+    if data[0] == '':
+        return 'fail'
+    return 'ok'
 
 
 def initdInstall():
-    import shutil
-    if not app_debug:
-        if mw.isAppleSystem():
-            return "Apple Computer does not support"
+    if mw.isAppleSystem():
+        return "Apple Computer does not support"
 
-    source_bin = initDreplace()
-    initd_bin = getInitDFile()
-    shutil.copyfile(source_bin, initd_bin)
-    mw.execShell('chmod +x ' + initd_bin)
-    mw.execShell('chkconfig --add ' + getPluginName())
+    mw.execShell('systemctl enable swap')
     return 'ok'
 
 
 def initdUinstall():
-    if not app_debug:
-        if mw.isAppleSystem():
-            return "Apple Computer does not support"
+    if mw.isAppleSystem():
+        return "Apple Computer does not support"
 
-    mw.execShell('chkconfig --del ' + getPluginName())
-    initd_bin = getInitDFile()
-    os.remove(initd_bin)
+    mw.execShell('systemctl disable swap')
     return 'ok'
 
 if __name__ == "__main__":

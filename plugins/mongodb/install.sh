@@ -12,7 +12,25 @@ serverPath=$(dirname "$rootPath")
 
 install_tmp=${rootPath}/tmp/mw_install.pl
 VERSION=$2
+
 sysName=`uname`
+echo "use system: ${sysName}"
+
+if [ ${sysName} == "Darwin" ]; then
+	OSNAME='macos'
+elif grep -Eqi "CentOS" /etc/issue || grep -Eq "CentOS" /etc/*-release; then
+	OSNAME='centos'
+elif grep -Eqi "Fedora" /etc/issue || grep -Eq "Fedora" /etc/*-release; then
+	OSNAME='fedora'
+elif grep -Eqi "Debian" /etc/issue || grep -Eq "Debian" /etc/*-release; then
+	OSNAME='debian'
+elif grep -Eqi "Ubuntu" /etc/issue || grep -Eq "Ubuntu" /etc/*-release; then
+	OSNAME='ubuntu'
+elif grep -Eqi "Raspbian" /etc/issue || grep -Eq "Raspbian" /etc/*-release; then
+	OSNAME='raspbian'
+else
+	OSNAME='unknow'
+fi
 
 Install_app_mac()
 {
@@ -41,13 +59,14 @@ Install_app()
 {
 	pip3 install pymongo
 
-	echo "sys:$sysName"
 	echo '正在安装脚本文件...' > $install_tmp
 	mkdir -p $serverPath/source
 	mkdir -p $serverPath/mongodb
-	# echo $sysName
-	if [ "Darwin" == "$sysName" ];then
+
+	if [ "macos" == "$OSNAME" ];then
 		Install_app_mac
+	elif [ "ubuntu" == "$OSNAME" ] || [ "debian" == "$OSNAME" ] ;then
+		apt install -y mongodb
 	else
 		Install_app_linux
 	fi
@@ -58,6 +77,7 @@ Install_app()
 
 Uninstall_app()
 {
+	# apt remove mongodb -y
 	rm -rf $serverPath/mongodb
 	echo "Uninstall_mongodb" > $install_tmp
 }

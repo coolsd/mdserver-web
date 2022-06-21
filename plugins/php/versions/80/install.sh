@@ -11,7 +11,7 @@ sysName=`uname`
 install_tmp=${rootPath}/tmp/mw_install.pl
 
 
-version=8.0.13
+version=8.0.20
 PHP_VER=80
 Install_php()
 {
@@ -19,6 +19,11 @@ Install_php()
 echo "安装php-${version} ..." > $install_tmp
 mkdir -p $sourcePath/php
 mkdir -p $serverPath/php
+
+cd $serverPath/mdserver-web/plugins/php/lib && /bin/bash freetype_new.sh
+cd $serverPath/mdserver-web/plugins/php/lib && /bin/bash libiconv.sh
+cd $serverPath/mdserver-web/plugins/php/lib && /bin/bash zlib.sh
+cd $serverPath/mdserver-web/plugins/php/lib && /bin/bash libzip.sh
 
 if [ ! -d $sourcePath/php/php${PHP_VER} ];then
 
@@ -45,7 +50,7 @@ if [ $sysName == 'Darwin' ]; then
 else
 	OPTIONS="--with-iconv=${serverPath}/lib/libiconv"
 	OPTIONS="${OPTIONS} --with-freetype-dir=${serverPath}/lib/freetype"
-	OPTIONS="${OPTIONS} --with-gd --enable-gd-native-ttf"
+	OPTIONS="${OPTIONS} --with-gd"
 	OPTIONS="${OPTIONS} --with-curl"
 	OPTIONS="${OPTIONS} --with-libzip=${serverPath}/lib/libzip"
 fi
@@ -68,12 +73,12 @@ if [ ! -d $serverPath/php/${PHP_VER} ];then
 	--enable-ftp \
 	--enable-sockets \
 	--enable-simplexml \
-	--enable-intl \
 	--enable-soap \
 	--enable-posix \
 	--enable-sysvmsg \
 	--enable-sysvsem \
 	--enable-sysvshm \
+	--disable-intl \
 	--disable-fileinfo \
 	$OPTIONS \
 	--enable-fpm \

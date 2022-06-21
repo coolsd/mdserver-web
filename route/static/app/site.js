@@ -323,6 +323,7 @@ function webPathEdit(id){
 	$.post('/site/get_dir_user_ini','&id='+id, function(data){
 		var userini = data['data'];
 		var webpath = userini['path'];
+		var siteName = userini['name'];
 		var userinicheckeds = userini.userini?'checked':'';
 		var logscheckeds = userini.logs?'checked':'';
 		var opt = ''
@@ -372,6 +373,7 @@ function webPathEdit(id){
 		$("#userini").change(function(){
 			$.post('/site/set_dir_user_ini','path='+webpath,function(userini){
 				layer.msg(userini.msg+'<p style="color:red;">注意：设置防跨站需要重启PHP才能生效!</p>',{icon:userini.status?1:2});
+				tryRestartPHP(siteName);
 			},'json');
 		});
 		
@@ -2246,5 +2248,33 @@ function setSizeClassType(){
 		},{icon:rdata.status?1:2});
 	},'json');
 }
+
+
+// 尝试重启PHP
+function tryRestartPHP(siteName){
+	$.post('/site/get_site_php_version','siteName='+siteName,function(data){
+
+		if (data.phpversion == "00"){
+			return
+		}
+		
+		var reqData = {name:'php', func:'restart'}
+		reqData['version'] = data.phpversion;
+
+		// console.log(reqData);
+		var loadT = layer.msg('尝试自动重启PHP['+data.phpversion+']...', { icon: 16, time: 0, shade: 0.3 });
+		$.post('/plugins/run', reqData, function(data) {
+			layer.close(loadT);
+	        layer.msg(data.msg,{icon:data.status?1:2,time:3000,shade: [0.3, '#000']});
+	    },'json');
+	},'json');
+}
+
+
+
+
+
+
+
 
 

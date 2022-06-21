@@ -20,6 +20,11 @@ echo "安装php-${version} ..." > $install_tmp
 mkdir -p $sourcePath/php
 mkdir -p $serverPath/php
 
+cd $serverPath/mdserver-web/plugins/php/lib && /bin/bash freetype_old.sh
+cd $serverPath/mdserver-web/plugins/php/lib && /bin/bash libiconv.sh
+cd $serverPath/mdserver-web/plugins/php/lib && /bin/bash zlib.sh
+cd $serverPath/mdserver-web/plugins/php/lib && /bin/bash libzip.sh
+
 if [ ! -d $sourcePath/php/php${PHP_VER} ];then
 	
 	if [ ! -f $sourcePath/php/php-${version}.tar.xz ];then
@@ -38,8 +43,8 @@ if [ $sysName == 'Darwin' ]; then
 	# OPTIONS="${OPTIONS} --enable-zip"
 else
 	OPTIONS="--with-iconv=${serverPath}/lib/libiconv"
-	OPTIONS="${OPTIONS} --with-freetype-dir=${serverPath}/lib/freetype"
-	OPTIONS="${OPTIONS} --with-gd --enable-gd-native-ttf"
+	OPTIONS="${OPTIONS} --with-freetype-dir=${serverPath}/lib/freetype_old"
+	OPTIONS="${OPTIONS} --with-gd"
 	OPTIONS="${OPTIONS} --with-curl"
 	OPTIONS="${OPTIONS} --with-libzip=${serverPath}/lib/libzip"
 fi
@@ -58,12 +63,12 @@ if [ ! -d $serverPath/php/73 ];then
 	--enable-ftp \
 	--enable-sockets \
 	--enable-simplexml \
-	--enable-intl \
 	--enable-soap \
 	--enable-posix \
 	--enable-sysvmsg \
 	--enable-sysvsem \
 	--enable-sysvshm \
+	--disable-intl \
 	--disable-fileinfo \
 	$OPTIONS \
 	--enable-fpm \

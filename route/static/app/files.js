@@ -217,7 +217,7 @@ function recycleBin(type){
 
 //去扩展名不处理
 function getFileName(name){
-	var text = name.split(".");
+	var text = name.split("/");
 	var n = text.length-1;
 	text = text[n];
 	return text;
@@ -464,6 +464,8 @@ function getFiles(Path) {
 		var copyName = getCookie('copyFileName');
 		var cutName = getCookie('cutFileName');
 		var isPaste = (copyName == 'null') ? cutName : copyName;
+		console.log('isPaste:',isPaste);
+		//---
 		if (isPaste != 'null' && isPaste != undefined) {
 			BarTools += ' <button onclick="javascript:pasteFile(\'' + (getFileName(isPaste)) + '\');" class="btn btn-Warning btn-sm">粘贴</button>';
 		}
@@ -1062,7 +1064,7 @@ function pasteFile(fileName) {
 			safeMessage('即将覆盖以下文件',mbody,function(){
 				pasteTo(path,copyName,cutName,fileName);
 			});
-		}else{
+		} else {
 			pasteTo(path,copyName,cutName,fileName);
 		}
 	},'json');
@@ -1075,6 +1077,12 @@ function pasteTo(path,copyName,cutName,fileName){
 			icon: 16,
 			time: 0,shade: [0.3, '#000']
 		});
+
+		//同目录下
+		if (copyName == path +'/'+ fileName){
+			fileName = '__copy__'+ fileName;
+		}
+
 		$.post('/files/copy_file', 'sfile=' + encodeURIComponent(copyName) + '&dfile=' + encodeURIComponent(path +'/'+ fileName), function(rdata) {
 			layer.closeAll();
 			layer.msg(rdata.msg, {
@@ -1094,11 +1102,9 @@ function pasteTo(path,copyName,cutName,fileName){
 		});
 		$.post('/files/mv_file', 'sfile=' + encodeURIComponent(cutName) + '&dfile=' + encodeURIComponent(path + '/'+fileName), function(rdata) {
 			layer.closeAll();
-			layer.msg(rdata.msg, {
-				icon: rdata.status ? 1 : 2
-			});
+			layer.msg(rdata.msg, {icon: rdata.status ? 1 : 2});
 			getFiles(path);
-		});
+		},'json');
 		setCookie('copyFileName', null);
 		setCookie('cutFileName', null);
 	}
@@ -1178,15 +1184,14 @@ function unZip(fileName,type) {
 	if(type.length ==3){
 		var sfile = encodeURIComponent($("#sfile").val());
 		var dfile = encodeURIComponent($("#dfile").val());
-		var password = encodeURIComponent($("#unpass").val());
 		coding = $("select[name='coding']").val();
 		layer.closeAll();
 		layer.msg(lan.files.unzip_the, {icon: 16,time: 0,shade: [0.3, '#000']});
-		$.post('/files?action=UnZip', 'sfile=' + sfile + '&dfile=' + dfile +'&type=' + type + '&coding=' + coding + '&password=' + password, function(rdata) {
+		$.post('/files/unzip', 'sfile=' + sfile + '&dfile=' + dfile +'&type=' + type + '&path='+encodeURIComponent(path), function(rdata) {
 			layer.closeAll();
 			layer.msg(rdata.msg, {icon: rdata.status ? 1 : 2});
 			getFiles(path);
-		});
+		},'json');
 		return
 	}
 	
@@ -1212,7 +1217,7 @@ function unZip(fileName,type) {
 					+'</div>'
 					+'<div class="bt-form-submit-btn">'
 					+'<button type="button" class="btn btn-danger btn-sm btn-title" onclick="layer.closeAll()">'+lan.public.close+'</button>'
-					+'<button type="button" id="ReNameBtn" class="btn btn-success btn-sm btn-title" onclick="UnZip(\'' + fileName + '\',\''+type+'\')">'+lan.files.file_menu_unzip+'</button>'
+					+'<button type="button" id="ReNameBtn" class="btn btn-success btn-sm btn-title" onclick="unZip(\'' + fileName + '\',\''+type+'\')">'+lan.files.file_menu_unzip+'</button>'
 					+'</div>'
 				+'</div>'
 	});

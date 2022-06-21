@@ -157,11 +157,12 @@ def initDreplace():
 
     initD_path = getServerDir() + '/init.d'
 
-    # Openresty is not installed
+    # OpenResty is not installed
     if not os.path.exists(getServerDir()):
         print("ok")
         exit(0)
 
+    # init.d
     file_bin = initD_path + '/' + getPluginName()
     if not os.path.exists(initD_path):
         os.mkdir(initD_path)
@@ -174,6 +175,16 @@ def initDreplace():
 
         # config replace
         confReplace()
+
+    # systemd
+    systemDir = '/lib/systemd/system'
+    systemService = systemDir + '/openresty.service'
+    systemServiceTpl = getPluginDir() + '/init.d/openresty.service.tpl'
+    if os.path.exists(systemDir) and not os.path.exists(systemService):
+        se_content = mw.readFile(systemServiceTpl)
+        se_content = se_content.replace('{$SERVER_PATH}', service_path)
+        mw.writeFile(systemService, se_content)
+        mw.execShell('systemctl daemon-reload')
 
     # make nginx vhost or other
     makeConf()
@@ -189,71 +200,62 @@ def status():
     return 'start'
 
 
-def start():
+def restyOp(method):
     file = initDreplace()
-    data = mw.execShell(file + ' start')
+
+    if not mw.isAppleSystem():
+        data = mw.execShell('systemctl ' + method + ' openresty')
+        if data[1] == '':
+            return 'ok'
+        return 'fail'
+
+    data = mw.execShell(file + ' ' + method)
     if data[1] == '':
         return 'ok'
     return data[1]
+
+
+def start():
+    return restyOp('start')
 
 
 def stop():
-    file = initDreplace()
-    data = mw.execShell(file + ' stop')
-    clearTemp()
-    if data[1] == '':
-        return 'ok'
-    return data[1]
+    return restyOp('stop')
 
 
 def restart():
-    file = initDreplace()
-    data = mw.execShell(file + ' restart')
-    if data[1] == '':
-        return 'ok'
-    return data[1]
+    return restyOp('restart')
 
 
 def reload():
-    file = initDreplace()
-    data = mw.execShell(file + ' reload')
-    if data[1] == '':
-        return 'ok'
-    return data[1]
+    return restyOp('reload')
 
 
 def initdStatus():
-    if not app_debug:
-        if mw.isAppleSystem():
-            return "Apple Computer does not support"
-    initd_bin = getInitDFile()
-    if os.path.exists(initd_bin):
-        return 'ok'
-    return 'fail'
+
+    if mw.isAppleSystem():
+        return "Apple Computer does not support"
+
+    shell_cmd = 'systemctl status openresty | grep loaded | grep "enabled;"'
+    data = mw.execShell(shell_cmd)
+    if data[0] == '':
+        return 'fail'
+    return 'ok'
 
 
 def initdInstall():
-    import shutil
-    if not app_debug:
-        if mw.isAppleSystem():
-            return "Apple Computer does not support"
+    if mw.isAppleSystem():
+        return "Apple Computer does not support"
 
-    source_bin = initDreplace()
-    initd_bin = getInitDFile()
-    shutil.copyfile(source_bin, initd_bin)
-    mw.execShell('chmod +x ' + initd_bin)
-    mw.execShell('chkconfig --add ' + getPluginName())
+    mw.execShell('systemctl enable openresty')
     return 'ok'
 
 
 def initdUinstall():
-    if not app_debug:
-        if mw.isAppleSystem():
-            return "Apple Computer does not support"
+    if mw.isAppleSystem():
+        return "Apple Computer does not support"
 
-    mw.execShell('chkconfig --del ' + getPluginName())
-    initd_bin = getInitDFile()
-    os.remove(initd_bin)
+    mw.execShell('systemctl disable openresty')
     return 'ok'
 
 

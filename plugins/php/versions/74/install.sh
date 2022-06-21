@@ -11,7 +11,7 @@ sysName=`uname`
 install_tmp=${rootPath}/tmp/mw_install.pl
 
 
-version=7.4.26
+version=7.4.30
 PHP_VER=74
 Install_php()
 {
@@ -19,6 +19,11 @@ Install_php()
 echo "安装php-${version} ..." > $install_tmp
 mkdir -p $sourcePath/php
 mkdir -p $serverPath/php
+
+cd $serverPath/mdserver-web/plugins/php/lib && /bin/bash freetype_new.sh
+cd $serverPath/mdserver-web/plugins/php/lib && /bin/bash libiconv.sh
+cd $serverPath/mdserver-web/plugins/php/lib && /bin/bash zlib.sh
+cd $serverPath/mdserver-web/plugins/php/lib && /bin/bash libzip.sh
 
 if [ ! -d $sourcePath/php/php${PHP_VER} ];then
 
@@ -68,12 +73,12 @@ if [ ! -d $serverPath/php/${PHP_VER} ];then
 	--enable-ftp \
 	--enable-sockets \
 	--enable-simplexml \
-	--enable-intl \
 	--enable-soap \
 	--enable-posix \
 	--enable-sysvmsg \
 	--enable-sysvsem \
 	--enable-sysvshm \
+	--disable-intl \
 	--disable-fileinfo \
 	$OPTIONS \
 	--enable-fpm \

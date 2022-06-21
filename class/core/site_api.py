@@ -335,6 +335,7 @@ class site_api:
         data['runPath'] = self.getSiteRunPath(mid)
         data['pass'] = self.getHasPwd(name)
         data['path'] = path
+        data['name'] = name
         return mw.returnJson(True, 'OK', data)
 
     def setDirUserIniApi(self):
@@ -345,7 +346,8 @@ class site_api:
             mw.execShell("which chattr && chattr -i " + filename)
             os.remove(filename)
             return mw.returnJson(True, '已清除防跨站设置!')
-        mw.writeFile(filename, 'open_basedir=' + path + '/:/tmp/:/proc/')
+        mw.writeFile(filename, 'open_basedir=' + path +
+                     '/:/www/server/php:/tmp/:/proc/')
         mw.execShell("which chattr && chattr +i " + filename)
         return mw.returnJson(True, '已打开防跨站设置!')
 
@@ -1855,7 +1857,7 @@ location /{
 
         self.delUserInI(newPath)
         mw.writeFile(filename, 'open_basedir=' +
-                     newPath + '/:/tmp/:/proc/')
+                     newPath + '/:/www/server/php:/tmp/:/proc/')
         mw.execShell("chattr +i " + filename)
 
         return mw.returnJson(True, '已打开防跨站设置!')

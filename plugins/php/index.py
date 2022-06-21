@@ -75,6 +75,7 @@ def getConf(version):
 
 
 def status(version):
+    # ps -ef|grep 'php/81' |grep -v grep | grep -v python | awk '{print $2}
     cmd = "ps -ef|grep 'php/" + version + \
         "' |grep -v grep | grep -v python | awk '{print $2}'"
     data = mw.execShell(cmd)
@@ -192,14 +193,16 @@ def phpFpmWwwReplace(version):
 
 
 def makePhpIni(version):
-    d_ini = mw.getServerDir() + '/php/' + version + '/etc/php.ini'
-    if not os.path.exists(d_ini):
-        s_ini = getPluginDir() + '/conf/php' + version[0:1] + '.ini'
+    dst_ini = mw.getServerDir() + '/php/' + version + '/etc/php.ini'
+    if not os.path.exists(dst_ini):
+        src_ini = getPluginDir() + '/conf/php' + version[0:1] + '.ini'
         # shutil.copyfile(s_ini, d_ini)
-        content = mw.readFile(s_ini)
+        content = mw.readFile(src_ini)
         if version == '52':
             content = content + "auto_prepend_file=/www/server/php/app_start.php"
-        mw.writeFile(d_ini, content)
+
+        content = contentReplace(content, version)
+        mw.writeFile(dst_ini, content)
 
 
 def initReplace(version):
@@ -227,22 +230,40 @@ def initReplace(version):
     phpFpmWwwReplace(version)
     phpFpmReplace(version)
 
-    session_path = '/tmp/session'
+    session_path = getServerDir() + '/tmp/session'
     if not os.path.exists(session_path):
-        os.mkdir(session_path)
-        if not mw.isAppleSystem():
-            mw.execShell('chown -R www:www ' + session_path)
+        mw.execShell('mkdir -p ' + session_path)
+        mw.execShell('chown -R www:www ' + session_path)
 
-    upload_path = '/tmp/upload'
+    upload_path = getServerDir() + '/tmp/upload'
     if not os.path.exists(upload_path):
-        os.mkdir(upload_path)
-        if not mw.isAppleSystem():
-            mw.execShell('chown -R www:www ' + upload_path)
+        mw.execShell('mkdir -p ' + upload_path)
+        mw.execShell('chown -R www:www ' + upload_path)
+
+    # systemd
+    systemDir = '/lib/systemd/system'
+    systemService = systemDir + '/php' + version + '.service'
+    systemServiceTpl = getPluginDir() + '/init.d/php.service.tpl'
+    if os.path.exists(systemDir) and not os.path.exists(systemService):
+        service_path = mw.getServerDir()
+        se_content = mw.readFile(systemServiceTpl)
+        se_content = se_content.replace('{$VERSION}', version)
+        se_content = se_content.replace('{$SERVER_PATH}', service_path)
+        mw.writeFile(systemService, se_content)
+        mw.execShell('systemctl daemon-reload')
+
     return file_bin
 
 
 def phpOp(version, method):
     file = initReplace(version)
+
+    if not mw.isAppleSystem():
+        data = mw.execShell('systemctl ' + method + ' php' + version)
+        if data[1] == '':
+            return 'ok'
+        return 'fail'
+
     data = mw.execShell(file + ' ' + method)
     if data[1] == '':
         return 'ok'
@@ -266,37 +287,29 @@ def reload(version):
 
 
 def initdStatus(version):
-    if not app_debug:
-        if mw.isAppleSystem():
-            return "Apple Computer does not support"
-    initd_bin = getInitDFile(version)
-    if os.path.exists(initd_bin):
-        return 'ok'
-    return 'fail'
+    if mw.isAppleSystem():
+        return "Apple Computer does not support"
+
+    shell_cmd = 'systemctl status php' + version + ' | grep loaded | grep "enabled;"'
+    data = mw.execShell(shell_cmd)
+    if data[0] == '':
+        return 'fail'
+    return 'ok'
 
 
 def initdInstall(version):
-    import shutil
-    if not app_debug:
-        if mw.isAppleSystem():
-            return "Apple Computer does not support"
+    if mw.isAppleSystem():
+        return "Apple Computer does not support"
 
-    source_bin = initReplace(version)
-    initd_bin = getInitDFile(version)
-    shutil.copyfile(source_bin, initd_bin)
-    mw.execShell('chmod +x ' + initd_bin)
-    mw.execShell('chkconfig --add ' + getPluginName() + version)
+    mw.execShell('systemctl enable php' + version)
     return 'ok'
 
 
 def initdUinstall(version):
-    if not app_debug:
-        if mw.isAppleSystem():
-            return "Apple Computer does not support"
+    if mw.isAppleSystem():
+        return "Apple Computer does not support"
 
-    mw.execShell('chkconfig --del ' + getPluginName())
-    initd_bin = getInitDFile(version)
-    os.remove(initd_bin)
+    mw.execShell('systemctl disable php' + version)
     return 'ok'
 
 

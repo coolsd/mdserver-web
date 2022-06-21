@@ -18,7 +18,6 @@ import mw
 # sys.setdefaultencoding('utf-8')
 import db
 
-
 # cmd = 'ls /usr/local/lib/ | grep python  | cut -d \\  -f 1 | awk \'END {print}\''
 # info = mw.execShell(cmd)
 # p = "/usr/local/lib/" + info[0].strip() + "/site-packages"
@@ -81,9 +80,9 @@ def execShell(cmdstring, cwd=None, timeout=None, shell=True):
         if timeout:
             end_time = datetime.datetime.now() + datetime.timedelta(seconds=timeout)
 
-        sub = subprocess.Popen(cmdstring + ' > ' + logPath + ' 2>&1',
-                               cwd=cwd, stdin=subprocess.PIPE, shell=shell, bufsize=4096)
-
+        cmd = cmdstring + ' > ' + logPath + ' 2>&1'
+        sub = subprocess.Popen(
+            cmd, cwd=cwd, stdin=subprocess.PIPE, shell=shell, bufsize=4096)
         while sub.poll() is None:
             time.sleep(0.1)
 
@@ -185,9 +184,9 @@ def mainSafe():
             return True
         isCheck = 0
         isStart = mw.execShell(
-            "ps aux |grep 'python main.py'|grep -v grep|awk '{print $2}'")[0]
+            "ps aux |grep 'python3 main.py'|grep -v grep|awk '{print $2}'")[0]
         if not isStart:
-            os.system('/etc/init.d/bt start')
+            os.system('/etc/init.d/mw start')
             isStart = mw.execShell(
                 "ps aux |grep 'python main.py'|grep -v grep|awk '{print $2}'")[0]
             mw.writeLog('守护程序', '面板服务程序启动成功 -> PID: ' + isStart)
@@ -479,11 +478,18 @@ def checkPHPVersion(version):
 if __name__ == "__main__":
 
     t = threading.Thread(target=systemTask)
-    t.setDaemon(True)
+    if sys.version_info.major == 3 and sys.version_info.minor >= 10:
+        t.daemon = True
+    else:
+        t.setDaemon(True)
     t.start()
 
     p = threading.Thread(target=check502Task)
-    p.setDaemon(True)
+    if sys.version_info.major == 3 and sys.version_info.minor >= 10:
+        p.daemon = True
+    else:
+        p.setDaemon(True)
+
     p.start()
 
     startTask()

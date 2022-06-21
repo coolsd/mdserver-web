@@ -8,7 +8,7 @@ if [ -f bin/activate ];then
 	source bin/activate
 fi
 
-export LC_ALL="en_US.UTF-8"
+# export LC_ALL="en_US.UTF-8"
 
 mw_start(){
 	gunicorn -c setting.py app:app
@@ -24,8 +24,9 @@ mw_start_debug(){
 }
 
 mw_start_debug2(){
-	python3 task.py &
 	gunicorn -c setting.py app:app
+	python3 task.py &
+	
 }
 
 

@@ -137,7 +137,22 @@ class config_api:
 
         if port != mw.getHostPort():
             import system_api
+            import firewall_api
+
+            if os.path.exists("/lib/systemd/system/firewalld.service"):
+                if not firewall_api.firewall_api().getFwStatus():
+                    return mw.returnJson(False, 'firewalld必须先启动!')
+
             mw.setHostPort(port)
+
+            msg = mw.getInfo('放行端口[{1}]成功', (port,))
+            mw.writeLog("防火墙管理", msg)
+            addtime = time.strftime('%Y-%m-%d %X', time.localtime())
+            mw.M('firewall').add('port,ps,addtime', (port, "配置修改", addtime))
+
+            firewall_api.firewall_api().addAcceptPort(port)
+            firewall_api.firewall_api().firewallReload()
+
             system_api.system_api().restartMw()
 
         if host_ip != mw.getHostAddr():

@@ -19,6 +19,10 @@ echo "安装php-5.5.38 ..." > $install_tmp
 mkdir -p $sourcePath/php
 mkdir -p $serverPath/php
 
+cd $serverPath/mdserver-web/plugins/php/lib && /bin/bash freetype_old.sh
+cd $serverPath/mdserver-web/plugins/php/lib && /bin/bash libiconv.sh
+cd $serverPath/mdserver-web/plugins/php/lib && /bin/bash zlib.sh
+
 if [ ! -d $sourcePath/php/php${PHP_VER} ];then
 	if [ ! -f $sourcePath/php/php-${version}.tar.xz ];then
 		wget --no-check-certificate -O $sourcePath/php/php-${version}.tar.xz https://museum.php.net/php5/php-${version}.tar.xz
@@ -35,7 +39,7 @@ if [ $sysName == 'Darwin' ]; then
 	OPTIONS="${OPTIONS} --with-curl=${serverPath}/lib/curl"
 else
 	OPTIONS="--with-iconv=${serverPath}/lib/libiconv"
-	OPTIONS="${OPTIONS} --with-freetype-dir=${serverPath}/lib/freetype"
+	OPTIONS="${OPTIONS} --with-freetype-dir=${serverPath}/lib/freetype_old"
 	OPTIONS="${OPTIONS} --with-gd --enable-gd-native-ttf"
 	OPTIONS="${OPTIONS} --with-curl"
 fi
@@ -52,7 +56,6 @@ if [ ! -d $serverPath/php/55  ];then
 	--with-mysqli=mysqlnd \
 	--enable-zip \
 	--enable-simplexml \
-	--enable-intl \
 	--enable-mbstring \
 	--enable-sockets \
 	--enable-ftp \
@@ -61,6 +64,7 @@ if [ ! -d $serverPath/php/55  ];then
 	--enable-sysvmsg \
 	--enable-sysvsem \
 	--enable-sysvshm \
+	--disable-intl \
 	--disable-fileinfo \
 	$OPTIONS \
 	--enable-fpm \

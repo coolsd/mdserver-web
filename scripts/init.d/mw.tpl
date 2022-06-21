@@ -14,17 +14,17 @@
 
 
 PATH=/usr/local/bin:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin
+# export LC_ALL="en_US.UTF-8"
 
 mw_path={$SERVER_PATH}
 PATH=$PATH:$mw_path/bin
+
 
 if [ -f $mw_path/bin/activate ];then
     source $mw_path/bin/activate
 else 
     echo ""
 fi
-
-export LC_ALL="en_US.UTF-8"
 
 
 mw_start(){
@@ -167,7 +167,17 @@ case "$1" in
     'logs') error_logs;;
     'default')
         cd $mw_path
-        port=$(cat $mw_path/data/port.pl)
+        port=7200
+        
+        if [ -f $mw_path/data/port.pl ];then
+            port=$(cat $mw_path/data/port.pl)
+        fi
+
+        if [ ! -f $mw_path/data/default.pl ];then
+            echo -e "\033[33mInstall Failed\033[0m"
+            exit 0
+        fi
+
         password=$(cat $mw_path/data/default.pl)
         if [ -f $mw_path/data/domain.conf ];then
             address=$(cat $mw_path/data/domain.conf)

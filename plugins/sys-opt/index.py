@@ -104,15 +104,25 @@ def sysConf():
 
 
 def secRunLog():
+    if os.path.exists('/var/log/auth.log'):
+        return '/var/log/auth.log'
     return '/var/log/secure'
 
 
 def msgRunLog():
+    if os.path.exists('/var/log/kern.log'):
+        return '/var/log/kern.log'
     return '/var/log/messages'
 
 
 def cronRunLog():
+    if os.path.exists('/var/log/syslog.log'):
+        return '/var/log/syslog.log'
     return '/var/log/cron'
+
+
+def systemRunLog():
+    return '/var/log/syslog'
 
 if __name__ == "__main__":
     func = sys.argv[1]
@@ -138,5 +148,7 @@ if __name__ == "__main__":
         print(msgRunLog())
     elif func == 'cron_run_log':
         print(cronRunLog())
+    elif func == 'sys_run_log':
+        print(systemRunLog())
     else:
         print('err')

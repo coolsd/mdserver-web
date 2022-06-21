@@ -120,8 +120,8 @@ def start():
     if not os.path.exists(conf_run):
         conf_tpl = getPluginDir() + '/conf/config.inc.php'
         centent = mw.readFile(conf_tpl)
-        # centent = contentReplace(centent)
-        print(mw.writeFile(conf_run, centent))
+        centent = contentReplace(centent)
+        mw.writeFile(conf_run, centent)
 
     mw.restartWeb()
     return 'ok'
@@ -200,6 +200,14 @@ def setPmaPort():
     return mw.returnJson(True, '修改成功!')
 
 
+def accessLog():
+    return '/www/server/phpmyadmin/access.log'
+
+
+def errorLog():
+    return '/www/server/phpmyadmin/error.log'
+
+
 if __name__ == "__main__":
     func = sys.argv[1]
     if func == 'status':
@@ -224,5 +232,9 @@ if __name__ == "__main__":
         print(getPmaPort())
     elif func == 'set_pma_port':
         print(setPmaPort())
+    elif func == 'access_log':
+        print(accessLog())
+    elif func == 'error_log':
+        print(errorLog())
     else:
         print('error')

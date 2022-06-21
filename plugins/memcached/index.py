@@ -37,13 +37,18 @@ def getConf():
     return path
 
 
+def getConfEnv():
+    path = getServerDir() + "/memcached.env"
+    return path
+
+
 def getConfTpl():
     path = getPluginDir() + "/init.d/memcached.tpl"
     return path
 
 
 def getMemPort():
-    path = getConf()
+    path = getServerDir() + '/memcached.env'
     content = mw.readFile(path)
     rep = 'PORT\s*=\s*(\d*)'
     tmp = re.search(rep, content)
@@ -65,6 +70,13 @@ def getArgs():
             tmp[t[0]] = t[1]
 
     return tmp
+
+
+def checkArgs(data, ck=[]):
+    for i in range(len(ck)):
+        if not ck[i] in data:
+            return (False, mw.returnJson(False, '参数:(' + ck[i] + ')没有!'))
+    return (True, mw.returnJson(True, 'ok'))
 
 
 def status():
@@ -91,11 +103,39 @@ def initDreplace():
         mw.writeFile(file_bin, content)
         mw.execShell('chmod +x ' + file_bin)
 
+    # systemd
+    systemDir = '/lib/systemd/system'
+    systemService = systemDir + '/memcached.service'
+    systemServiceTpl = getPluginDir() + '/init.d/memcached.service.tpl'
+    if os.path.exists(systemDir) and not os.path.exists(systemService):
+        service_path = mw.getServerDir()
+        se_content = mw.readFile(systemServiceTpl)
+        se_content = se_content.replace('{$SERVER_PATH}', service_path)
+        mw.writeFile(systemService, se_content)
+        mw.execShell('systemctl daemon-reload')
+
+    envFile = getServerDir() + '/memcached.env'
+    if not os.path.exists(envFile):
+        wbody = "IP=127.0.0.1\n"
+        wbody = wbody + "PORT=11211\n"
+        wbody = wbody + "USER=root\n"
+        wbody = wbody + "MAXCONN=1024\n"
+        wbody = wbody + "CACHESIZE=1024\n"
+        wbody = wbody + "OPTIONS=''\n"
+        mw.writeFile(envFile, wbody)
+
     return file_bin
 
 
 def memOp(method):
     file = initDreplace()
+
+    if not mw.isAppleSystem():
+        data = mw.execShell('systemctl ' + method + ' ' + getPluginName())
+        if data[1] == '':
+            return 'ok'
+        return data[1]
+
     data = mw.execShell(file + ' ' + method)
     if data[1] == '':
         return 'ok'
@@ -146,7 +186,7 @@ def runInfo():
             result['hit'] = float(result['get_hits']) / \
                 float(result['cmd_get']) * 100
 
-        conf = mw.readFile(getConf())
+        conf = mw.readFile(getServerDir() + '/memcached.env')
         result['bind'] = re.search('IP=(.+)', conf).groups()[0]
         result['port'] = int(re.search('PORT=(\d+)', conf).groups()[0])
         result['maxconn'] = int(re.search('MAXCONN=(\d+)', conf).groups()[0])
@@ -158,47 +198,43 @@ def runInfo():
 
 
 def saveConf():
-     # 设置memcached缓存大小
-    import re
-    confFile = getConf()
-    # print confFile
-    try:
-        args = getArgs()
-        content = mw.readFile(confFile)
-        content = re.sub('IP=.+', 'IP=' + args['ip'], content)
-        content = re.sub('PORT=\d+', 'PORT=' + args['port'], content)
-        content = re.sub('MAXCONN=\d+', 'MAXCONN=' + args['maxconn'], content)
-        content = re.sub('CACHESIZE=\d+', 'CACHESIZE=' +
-                         args['cachesize'], content)
-        mw.writeFile(confFile, content)
-        restart()
-        return 'save ok'
-    except Exception as e:
-        pass
-    return 'fail'
+
+    args = getArgs()
+    data = checkArgs(args, ['ip', 'port', 'maxconn', 'maxsize'])
+    if not data[0]:
+        return data[1]
+
+    envFile = getServerDir() + '/memcached.env'
+
+    wbody = "IP=" + args['ip'] + "\n"
+    wbody = wbody + "PORT=" + args['port'] + "\n"
+    wbody = wbody + "USER=root\n"
+    wbody = wbody + "MAXCONN=" + args['maxconn'] + "\n"
+    wbody = wbody + "CACHESIZE=" + args['maxconn'] + "\n"
+    wbody = wbody + "OPTIONS=''\n"
+    mw.writeFile(envFile, wbody)
+
+    restart()
+    return 'save ok'
 
 
 def initdStatus():
-    if not app_debug:
-        if mw.isAppleSystem():
-            return "Apple Computer does not support"
-    initd_bin = getInitDFile()
-    if os.path.exists(initd_bin):
-        return 'ok'
-    return 'fail'
+    if mw.isAppleSystem():
+        return "Apple Computer does not support"
+
+    shell_cmd = 'systemctl status ' + \
+        getPluginName() + ' | grep loaded | grep "enabled;"'
+    data = mw.execShell(shell_cmd)
+    if data[0] == '':
+        return 'fail'
+    return 'ok'
 
 
 def initdInstall():
-    import shutil
-    if not app_debug:
-        if mw.isAppleSystem():
-            return "Apple Computer does not support"
+    if mw.isAppleSystem():
+        return "Apple Computer does not support"
 
-    mem_bin = initDreplace()
-    initd_bin = getInitDFile()
-    shutil.copyfile(mem_bin, initd_bin)
-    mw.execShell('chmod +x ' + initd_bin)
-    mw.execShell('chkconfig --add ' + getPluginName())
+    mw.execShell('systemctl enable ' + getPluginName())
     return 'ok'
 
 
@@ -207,9 +243,7 @@ def initdUinstall():
         if mw.isAppleSystem():
             return "Apple Computer does not support"
 
-    mw.execShell('chkconfig --del ' + getPluginName())
-    initd_bin = getInitDFile()
-    os.remove(initd_bin)
+    mw.execShell('systemctl disable ' + getPluginName())
     return 'ok'
 
 if __name__ == "__main__":
@@ -232,11 +266,9 @@ if __name__ == "__main__":
         print(initdUinstall())
     elif func == 'run_info':
         print(runInfo())
-    elif func == 'conf':
-        print(getConf())
-    elif func == 'conf_tpl':
-        print(getConfTpl())
+    elif func == 'conf_env':
+        print(getConfEnv())
     elif func == 'save_conf':
         print(saveConf())
     else:
-        print('fail')
+        print('error')

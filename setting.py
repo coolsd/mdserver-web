@@ -12,7 +12,10 @@ import mw
 # cmd = 'ls /usr/local/lib/ | grep python  | cut -d \\  -f 1 | awk \'END {print}\''
 # info = mw.execShell(cmd)
 # p = "/usr/local/lib/" + info[0].strip() + "/site-packages"
+# p_debain = "/usr/local/lib/" + info[0].strip() + "/dist-packages"
+
 # sys.path.append(p)
+# sys.path.append(p_debain)
 
 import system_api
 cpu_info = system_api.system_api().getCpuInfo()
@@ -22,9 +25,14 @@ workers = cpu_info[1]
 if not os.path.exists(os.getcwd() + '/logs'):
     os.mkdir(os.getcwd() + '/logs')
 
-mw_port = mw.readFile('data/port.pl')
-if mw_port:
+# default port
+mw_port = "7200"
+if os.path.exists("data/port.pl"):
+    mw_port = mw.readFile('data/port.pl')
     mw_port.strip()
+else:
+    mw.writeFile('data/port.pl', mw_port)
+
 bind = []
 if os.path.exists('data/ipv6.pl'):
     bind.append('[0:0:0:0:0:0:0:0]:%s' % mw_port)

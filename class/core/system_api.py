@@ -5,6 +5,7 @@ import time
 import os
 import re
 import math
+import sys
 import json
 
 from flask import Flask, session
@@ -12,9 +13,9 @@ from flask import request
 
 import db
 import mw
-import requests
-import config_api
 
+import config_api
+import requests
 
 from threading import Thread
 from time import sleep
@@ -249,9 +250,12 @@ class system_api:
 
     def getBootTime(self):
         # 取系统启动时间
-        start_time = psutil.boot_time()
-        run_time = time.time() - start_time
-        # conf = mw.readFile('/proc/uptime').split()
+        uptime = mw.readFile('/proc/uptime')
+        if uptime == False:
+            start_time = psutil.boot_time()
+            run_time = time.time() - start_time
+        else:
+            run_time = uptime.split()[0]
         tStr = float(run_time)
         min = tStr / 60
         hours = min / 60

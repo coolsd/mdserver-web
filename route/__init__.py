@@ -95,6 +95,18 @@ def funConvert(fun):
 def isLogined():
     # print('isLogined', session)
     if 'login' in session and 'username' in session and session['login'] == True:
+        userInfo = mw.M('users').where(
+            "id=?", (1,)).field('id,username,password').find()
+        if userInfo['username'] != session['username']:
+            return False
+
+        now_time = int(time.time())
+
+        if 'overdue' in session and now_time > session['overdue']:
+            # 自动续期
+            session['overdue'] = int(time.time()) + 7 * 24 * 60 * 60
+            return False
+
         return True
 
     if os.path.exists('data/api_login.txt'):
@@ -165,19 +177,6 @@ def checkLogin():
     return "false"
 
 
-@app.route("/login")
-def login():
-    # print session
-    dologin = request.args.get('dologin', '')
-    if dologin == 'True':
-        session.clear()
-        return redirect('/login')
-
-    if isLogined():
-        return redirect('/')
-    return render_template('login.html')
-
-
 @app.route("/do_login", methods=['POST'])
 def doLogin():
     username = request.form.get('username', '').strip()
@@ -225,7 +224,8 @@ def doLogin():
     cache.delete('login_cache_limit')
     session['login'] = True
     session['username'] = userInfo['username']
-    #print('do_login', session)
+    session['overdue'] = int(time.time()) + 7 * 24 * 60 * 60
+    # session['overdue'] = int(time.time()) + 7
 
     # fix 跳转时,数据消失，可能是跨域问题
     mw.writeFile('data/api_login.txt', userInfo['username'])
@@ -237,30 +237,80 @@ def page_unauthorized(error):
     return render_template_string('404 not found', error_info=error), 404
 
 
+def get_admin_safe():
+    path = 'data/admin_path.pl'
+    if os.path.exists(path):
+        cont = mw.readFile(path)
+        cont = cont.strip().strip('/')
+        return (True, cont)
+    return (False, '')
+
+
+def admin_safe_path(path, req, data, pageFile):
+    if path != req and not isLogined():
+        return render_template('path.html')
+
+    if not isLogined():
+        return render_template('login.html', data=data)
+
+    if not req in pageFile:
+        return redirect('/')
+
+    return render_template(req + '.html', data=data)
+
+
 @app.route('/<reqClass>/<reqAction>', methods=['POST', 'GET'])
 @app.route('/<reqClass>/', methods=['POST', 'GET'])
 @app.route('/<reqClass>', methods=['POST', 'GET'])
 @app.route('/', methods=['POST', 'GET'])
 def index(reqClass=None, reqAction=None, reqData=None):
+
     comReturn = common.local()
     if comReturn:
         return comReturn
 
-    if (reqClass == None):
-        reqClass = 'index'
-    pageFile = ('config', 'control', 'crontab', 'files', 'firewall',
-                'index', 'plugins', 'login', 'system', 'site', 'ssl', 'task', 'soft')
-    if not reqClass in pageFile:
-        return redirect('/')
-
+    # 页面请求
     if reqAction == None:
+        import config_api
+        data = config_api.config_api().get()
+
+        if reqClass == None:
+            reqClass = 'index'
+
+        pageFile = ('config', 'control', 'crontab', 'files', 'firewall',
+                    'index', 'plugins', 'login', 'system', 'site', 'ssl', 'task', 'soft')
+
+        # 设置了安全路径
+        ainfo = get_admin_safe()
+
+        # 登录页
+        if reqClass == 'login':
+            dologin = request.args.get('dologin', '')
+            if dologin == 'True':
+                session.clear()
+                session['login'] = False
+                session['overdue'] = 0
+
+            if ainfo[0]:
+                return admin_safe_path(ainfo[1], reqClass, data, pageFile)
+
+            return render_template('login.html', data=data)
+
+        if ainfo[0]:
+            return admin_safe_path(ainfo[1], reqClass, data, pageFile)
+
+        if not reqClass in pageFile:
+            return redirect('/')
+
         if not isLogined():
             return redirect('/login')
 
-        import config_api
-        data = config_api.config_api().get()
         return render_template(reqClass + '.html', data=data)
 
+    if not isLogined():
+        return 'request error!'
+
+    # API请求
     classFile = ('config_api', 'crontab_api', 'files_api', 'firewall_api',
                  'plugins_api', 'system_api', 'site_api', 'task_api')
     className = reqClass + '_api'
@@ -271,6 +321,7 @@ def index(reqClass=None, reqAction=None, reqData=None):
     newInstance = eval(eval_str)
 
     return publicObject(newInstance, reqAction)
+
 
 ssh = None
 shell = None
@@ -379,21 +430,3 @@ def connected_msg(msg):
     except Exception as e:
         pass
         # print 'connected_msg:' + str(e)
-
-
-# @socketio.on('panel')
-# def websocket_test(data):
-#     pdata = get_input_data(data)
-#     if not isLogined():
-#         emit(pdata.s_response, {
-#              'data': mw.returnData(-1, '会话丢失，请重新登陆面板!\r\n')})
-#         return None
-#     mods = ['site', 'ftp', 'database', 'ajax', 'system', 'crontab', 'files',
-#             'config', 'panel_data', 'plugin', 'ssl', 'auth', 'firewall', 'panel_wxapp']
-#     if not pdata['s_module'] in mods:
-#         result = '指定模块不存在!'
-#     else:
-#         result = eval("%s(pdata)" % pdata['s_module'])
-#     if not hasattr(pdata, 's_response'):
-#         pdata.s_response = 'response'
-#     emit(pdata.s_response, {'data': result})
